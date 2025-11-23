@@ -9,7 +9,7 @@ class FCFSScheduler:
         self.cluster = cluster
         self.workflow = workflow
 
-    def run(self, output_file="schedule_results.csv"):
+    def run(self, output_file="fcfs_results.csv"):
         sorted_tasks = self.topological_sort()
         
         node_free_time = {node: 0 for node in self.cluster.get_all_nodes()}
@@ -32,13 +32,11 @@ class FCFSScheduler:
             else:
                 deps_ready = max(task_finish_time[dep] for dep in task.dependencies)
 
-            # --- 1. Determine "Preferred" Resource ---
-            # We assume the "Preferred" option is the one with the shortest duration.
-            # (In a real scenario, preference might be complex, but speed is a safe default).
+            # Determine "Preferred" Resource
             preferred_type = min(task.duration_profiles, key=task.duration_profiles.get)
             preferred_duration = task.duration_profiles[preferred_type]
 
-            # --- 2. Find Best Execution Slot ---
+            # Find Best Execution Slot
             valid_options_found = False
             for r_type, duration in task.duration_profiles.items():
                 valid_nodes = [
@@ -62,20 +60,17 @@ class FCFSScheduler:
                 print(f"ERROR: No valid nodes found for task {task.name}")
                 continue
 
-            # --- 3. Assign & Update State ---
+            # Assign & Update State
             schedule_map[task.name] = best_node
             node_free_time[best_node] = best_finish_time
             task_finish_time[task.name] = best_finish_time
             task_start_time[task.name] = best_start_time
             
-            # --- 4. Calculate Metadata ---
+            # Calculate Metadata
             assigned_type = self.cluster.get_node_type(best_node)
             power = self.cluster.get_power_consumption(best_node)
             energy = selected_duration * power
             
-            # Did we fallback? 
-            # Yes, if the assigned type is NOT the preferred type.
-            # (e.g. Wanted GPU, got CPU)
             is_fallback = (assigned_type != preferred_type)
 
             csv_rows.append({
@@ -167,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--tasks", type=int, default=20, help="Number of tasks to generate")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--simple", action="store_true", help="Run the simple manual example instead of random")
-    parser.add_argument("--output", type=str, default="schedule_results.csv", help="Output CSV filename")
+    parser.add_argument("--output", type=str, default="fcfs_results.csv", help="Output CSV filename")
     
     args = parser.parse_args()
     

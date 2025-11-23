@@ -2,9 +2,6 @@ import random
 
 class Task:
     def __init__(self, name, duration_profiles, dependencies=None):
-        """
-        duration_profiles: Dictionary of resource_type -> seconds.
-        """
         self.name = name
         self.duration_profiles = duration_profiles 
         self.dependencies = dependencies if dependencies else []
@@ -26,7 +23,6 @@ class Workflow:
         return None
     
     def create_sample_workflow(self):
-        """The simple manual example."""
         t_a = Task('Task A', {'cpu': 15}, [])
         t_b1 = Task('Task B1', {'cpu': 10}, [])
         t_b2 = Task('Task B2', {'gpu': 20, 'cpu': 65}, ['Task B1'])
@@ -41,17 +37,15 @@ class Workflow:
             random.seed(seed)
             
         self.tasks = []
-        print(f"Generating wide workflow with {num_tasks} tasks...")
+        print(f"Generating workflow with {num_tasks} tasks...")
         
         # Ensure ~25% of tasks are "roots" (start at T=0 with no dependencies)
-        # This guarantees we have enough parallel work to fill the cluster early on.
         num_roots = max(4, int(num_tasks * 0.25))
 
         for i in range(num_tasks):
             name = f"Job_{i}"
             
-            # 1. Randomize Resource Profile
-            # 40% CPU only, 20% GPU only, 40% Hybrid
+            # Randomize Resource Profile
             r_type = random.random()
             
             if r_type < 0.4:
@@ -73,13 +67,8 @@ class Workflow:
             # 2. Randomize Dependencies
             deps = []
             
-            # If we are past the "root" phase, we can add dependencies.
-            # But we keep it light to encourage width (parallelism).
             if i >= num_roots:
-                # 20% chance of remaining independent (adding even more width)
                 if random.random() > 0.2:
-                    # Pick random parents from ANY previous task, not just recent ones.
-                    # Using a wider window helps create complex graphs.
                     num_parents = random.randint(1, 3)
                     candidates = [t.name for t in self.tasks]
                     deps = random.sample(candidates, num_parents)
