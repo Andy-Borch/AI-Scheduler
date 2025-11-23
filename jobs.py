@@ -1,38 +1,87 @@
-#TODO: Make mor jobs, more complicated. automate somehow?
-class Job:
-    def __init__(self, name, resource_type, duration, dependencies=None):
+import random
+
+class Task:
+    def __init__(self, name, duration_profiles, dependencies=None):
+        """
+        duration_profiles: Dictionary of resource_type -> seconds.
+        """
         self.name = name
-        self.resource_type = resource_type
-        self.duration = duration
+        self.duration_profiles = duration_profiles 
         self.dependencies = dependencies if dependencies else []
 
     def __repr__(self):
-        return f"Job({self.name}, {self.resource_type}, {self.duration}s)"
+        return f"Task({self.name}, {self.duration_profiles})"
 
 class Workflow:
     def __init__(self):
-        self.jobs = []
+        self.tasks = []
 
-    def job(self, job):
-        self.jobs.append(job)
+    def add_task(self, task):
+        self.tasks.append(task)
 
-    def job(self, name):
-        for t in self.job:
+    def get_task(self, name):
+        for t in self.tasks:
             if t.name == name:
                 return t
         return None
     
     def create_sample_workflow(self):
-        """Creates the example workflow from the project blueprint."""
-        # Job A: Independent
-        t_a = Job('Job A', 'cpu', 15, [])
+        """The simple manual example."""
+        t_a = Task('Task A', {'cpu': 15}, [])
+        t_b1 = Task('Task B1', {'cpu': 10}, [])
+        t_b2 = Task('Task B2', {'gpu': 20, 'cpu': 65}, ['Task B1'])
+        t_b3 = Task('Task B3', {'cpu': 5}, ['Task B2'])
+        self.tasks = [t_a, t_b1, t_b2, t_b3]
+
+    def generate_random_workflow(self, num_tasks=20, seed=None):
+        """
+        Generates a complex, random DAG of tasks with enough parallelism to fill a cluster.
+        """
+        if seed is not None:
+            random.seed(seed)
+            
+        self.tasks = []
+        print(f"Generating wide workflow with {num_tasks} tasks...")
         
-        # B Series: Dependent Chain
-        # Job B1 (CPU Pre-processing)
-        t_b1 = Job('Job B1', 'cpu', 10, [])
-        # Job B2 (GPU Computation), depends on B1
-        t_b2 = Job('Job B2', 'gpu', 20, ['Job B1'])
-        # Job B3 (CPU Post-processing), depends on B2
-        t_b3 = Job('Job B3', 'cpu', 5, ['Job B2'])
-        
-        self.jobs = [t_a, t_b1, t_b2, t_b3]
+        # Ensure ~25% of tasks are "roots" (start at T=0 with no dependencies)
+        # This guarantees we have enough parallel work to fill the cluster early on.
+        num_roots = max(4, int(num_tasks * 0.25))
+
+        for i in range(num_tasks):
+            name = f"Job_{i}"
+            
+            # 1. Randomize Resource Profile
+            # 40% CPU only, 20% GPU only, 40% Hybrid
+            r_type = random.random()
+            
+            if r_type < 0.4:
+                # CPU Only
+                duration = random.randint(10, 50)
+                profile = {'cpu': duration}
+                
+            elif r_type < 0.6:
+                # GPU Only
+                duration = random.randint(10, 40)
+                profile = {'gpu': duration}
+                
+            else:
+                # Hybrid with Tradeoff
+                gpu_time = random.randint(10, 30)
+                cpu_time = int(gpu_time * random.uniform(2.0, 5.0)) 
+                profile = {'gpu': gpu_time, 'cpu': cpu_time}
+            
+            # 2. Randomize Dependencies
+            deps = []
+            
+            # If we are past the "root" phase, we can add dependencies.
+            # But we keep it light to encourage width (parallelism).
+            if i >= num_roots:
+                # 20% chance of remaining independent (adding even more width)
+                if random.random() > 0.2:
+                    # Pick random parents from ANY previous task, not just recent ones.
+                    # Using a wider window helps create complex graphs.
+                    num_parents = random.randint(1, 3)
+                    candidates = [t.name for t in self.tasks]
+                    deps = random.sample(candidates, num_parents)
+            
+            self.tasks.append(Task(name, profile, deps))
