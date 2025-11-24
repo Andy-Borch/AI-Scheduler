@@ -40,22 +40,14 @@ class Workflow:
             profiles = {}
             
             if is_gpu_task:
-                # GPU Task (e.g., Deep Learning training)
-                # Fast on GPU, painfully slow on CPU
                 gpu_time = random.randint(200, 600)
                 profiles['gpu'] = gpu_time
                 # Penalty: 20x slower on CPU
                 profiles['cpu'] = gpu_time * 20 
             else:
-                # CPU Task (e.g., Data parsing, Web serving)
                 cpu_time = random.randint(100, 1000)
                 profiles['cpu'] = cpu_time
                 
-                # CRITICAL FIX:
-                # Running serial CPU code on a GPU is wildly inefficient.
-                # Previously 1.2x, now 10.0x.
-                # This ensures that 70W T4 (Speed 1.5) is NOT efficient for this.
-                # Math: (1000 * 10) / 1.5 = 6666s * 70W = 466,000J (vs 75,000J on CPU)
                 profiles['gpu'] = cpu_time * 10.0 
 
             deps = []
